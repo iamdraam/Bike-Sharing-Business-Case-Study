@@ -1,0 +1,386 @@
+## Importing all the libraries required 
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import datetime as datetime
+from numpy import NaN, nan, NAN
+from scipy import stats
+import statsmodels.api as sm
+import warnings
+from scipy.stats import shapiro
+from scipy.stats import levene
+warnings.filterwarnings("ignore")
+
+## Loading the dataset into the library
+bike_data = pd.read_csv('bike_sharing.csv')
+
+bike_data.describe().transpose()
+bike_data.info()
+bike_data.shape
+bike_data.isnull().any()
+bike_data.nunique()
+bike_data.duplicated().sum()
+bike_data.dtypes
+
+## Outlier Detection and Removal
+fig = plt.figure(figsize = (15,10))
+
+ax1=fig.add_subplot(221)
+sns.boxplot(x='season',y='count',data=bike_data)
+ax1.set_title('Boxplot for season vs corresponding bike renting counts')
+
+ax1=fig.add_subplot(222)
+sns.boxplot(x='holiday',y='count',data=bike_data)
+ax1.set_title('Boxplot for holiday vs corresponding bike renting counts')
+
+ax1 = fig.add_subplot(223)
+sns.boxplot(x = 'workingday', y = 'count', data = bike_data)
+ax1.set_title('Boxplot for is_weekend vs corresponding bike renting cnts')
+
+ax1 = fig.add_subplot(224)
+sns.boxplot(x = 'weather', y = 'count', data = bike_data)
+ax1.set_title('Boxplot for weather_code vs corresponding bike renting cnts')
+
+plt.show()
+
+fig = plt.figure(figsize = (15,10))
+
+ax1 = fig.add_subplot(221)
+sns.scatterplot(x = 'count', y = 'temp',data = bike_data, hue ='season' )
+ax1.set_title('scatterplot for season vs corresponding bike renting counts')
+
+ax1 = fig.add_subplot(222)
+sns.scatterplot(x ='count', y = 'temp', data = bike_data, hue ='holiday')
+ax1.set_title('scatterplot for holiday vs corresponding bike renting counts')
+
+ax1 = fig.add_subplot(223)
+sns.scatterplot(x = 'count', y = 'temp',data = bike_data, hue ='workingday')
+ax1.set_title('scatterplot for workingday vs corresponding bike renting counts')
+
+ax1 = fig.add_subplot(224)
+sns.scatterplot(x = 'count',y = 'temp',data = bike_data, hue ='weather')
+ax1.set_title('scatterplot for weather vs corresponding bike renting counts')
+
+plt.show()
+
+## Taking backup of original data before removing the outliers
+
+bike_dcopy = bike_data.copy()
+
+q1=bike_data['count'].quantile(0.25)
+q3=bike_data['count'].quantile(0.75)
+iqr=q3-q1
+bike_data = bike_data[(bike_data['count'] >= q1 - 1.5*iqr) & (bike_data['count'] <= q3 +1.5*iqr)]
+bike_data.shape
+
+bike_dcopy.shape[0] - bike_data.shape[0]
+
+## Visualizing after outliers removal
+
+fig = plt.figure(figsize = (15,10))
+
+ax1 = fig.add_subplot(221)
+sns.scatterplot(x = 'count', y = 'temp',data = bike_data, hue ='season' )
+ax1.set_title('scatterplot for season vs corresponding bike renting cnts')
+
+ax1 = fig.add_subplot(222)
+sns.scatterplot(x ='count', y = 'temp', data = bike_data, hue ='holiday')
+ax1.set_title('scatterplot for holiday vs corresponding bike renting cnts')
+
+ax1 = fig.add_subplot(223)
+sns.scatterplot(x = 'count', y = 'temp',data = bike_data, hue ='workingday')
+ax1.set_title('scatterplot for workingday vs corresponding bike renting cnts')
+
+ax1 = fig.add_subplot(224)
+sns.scatterplot(x = 'count',y = 'temp',data = bike_data, hue ='weather')
+ax1.set_title('scatterplot for weather vs corresponding bike renting cnts')
+
+plt.show()
+
+## Univariate and Bivariate analysis
+
+bike_datatime = pd.read_csv('bike_sharing.csv')
+bike_datatime
+
+bike_dcopy["datetime"].sort_values() 
+
+bike_dcopy['datetime'] = pd.to_datetime(bike_dcopy['datetime'])
+bike_dcopy['year'] = bike_dcopy['datetime'].dt.year
+bike_dcopy['month'] = bike_dcopy['datetime'].dt.month
+bike_dcopy['day'] = bike_dcopy['datetime'].dt.day
+
+np.sort(bike_dcopy[bike_dcopy['count'] >= bike_dcopy['count'].quantile(0.75)]['day'].unique())
+
+bike_dcopy[bike_dcopy['count'] >= bike_dcopy['count'].quantile(0.95)]['month'].unique()
+
+bike_dcopy['year'] = bike_dcopy['datetime'].dt.year
+
+bike_dcopy['month'] = bike_dcopy['datetime'].dt.month
+
+bike_dcopy.head()
+
+year_data = bike_dcopy.groupby(['year'])['count'].sum()
+year_data = year_data.reset_index()
+sns.barplot(x='year',y='count',data=year_data)
+plt.title('Count of booking per year')
+plt.show()
+
+month_data = bike_dcopy.groupby(['month'])['count'].sum()
+month_data = month_data.reset_index()
+sns.barplot(x='month',y='count',data=month_data)
+plt.title('Count of booking per month')
+plt.show()
+
+mon_year_data = bike_dcopy.groupby(['year','month'])['count'].sum()
+mon_year_data = pd.DataFrame(mon_year_data)
+mon_year_data.reset_index(inplace = True)
+myy = mon_year_data.pivot('month','year','count').fillna(0)
+
+sns.heatmap(myy)
+plt.title('Count of booking across years and months')
+plt.xlabel('Year')
+plt.ylabel('Month')
+plt.show()
+
+def num_feat(col_data):
+    fig,ax = plt.subplots(nrows=1,ncols=2,figsize=(10,5))
+    sns.histplot(col_data, kde=True, ax=ax[0], color = 'purple')
+    ax[0].axvline(col_data.mean(), color='r', linestyle='--',linewidth=2)
+    ax[0].axvline(col_data.median(), color='k', linestyle='dashed', linewidth=2)
+    ax[0].axvline(col_data.mode()[0],color='y',linestyle='solid',linewidth=2)
+    sns.boxplot(x=col_data, showmeans=True, ax=ax[1])
+    plt.tight_layout()
+    
+bike_data.info()
+
+bike_data.columns
+
+num_cols = ['temp','atemp','humidity','count','windspeed']
+num_cols
+
+for i in num_cols:
+    num_feat(bike_data[i])
+    
+def cat_feat(col_data):
+    fig,ax = plt.subplots(nrows=1,ncols=2,figsize=(12,5))
+    fig.suptitle(col_data.name+' wise sale',fontsize=15)
+    sns.countplot(col_data,ax=ax[0])
+    col_data.value_counts().plot.pie(autopct='%1.1f%%',ax=ax[1], shadow = True)
+    plt.tight_layout()
+    
+bike_data.columns
+
+cat_cols = ['season', 'holiday', 'workingday', 'weather']
+cat_cols
+
+for i in cat_cols:
+    cat_feat(bike_data[i])
+
+## Correlation between bivariate analysis
+plt.figure(figsize = (16, 10))
+sns.heatmap(bike_data.corr(),annot=True)
+
+#### 2 Sample test
+
+bike_data.shape
+
+bike_data['workingday'].value_counts(normalize = True) * 100
+plt.show()
+
+bike_data['workingday'].value_counts()
+
+working_data = bike_data[bike_data['workingday'] == 1].sample(replace = False)
+non_working_data = bike_data[bike_data['workingday'] == 0].sample(replace = False)
+
+round(working_data['count'].std()**2,2), round(non_working_data['count'].std()**2 ,2)
+
+fig = plt.figure(figsize = (15,12))
+ax1 = fig.add_subplot(221)
+sns.histplot(data = working_data, x = 'count' , bins = 50, kde = True, ax = ax1, color = 'red')
+ax1.set_title('count of bikes rented in working days')
+ax2 = fig.add_subplot(222)
+sm.qqplot(working_data['count'], line = 's', ax = ax2)
+ax2.set_title('qqplot for count in working days')
+ax3 = fig.add_subplot(223)
+sns.histplot(data = non_working_data, x = 'count' , bins = 50, kde = True, ax = ax3, color = 'red')
+
+t_test, p_value = stats.ttest_ind(working_data['count'],non_working_data['count'],
+                                  alternative='greater', equal_var = False)
+t_test, p_value
+ax3.set_title('count of bike rented in non-working days')
+ax4 = fig.add_subplot(224)
+sm.qqplot(non_working_data['count'], line = 's', ax = ax4)
+ax4.set_title('qqplot for count in non-working days')
+plt.show()
+
+fig = plt.figure(figsize = (15,12))
+ax1 = fig.add_subplot(221)
+sns.histplot(data = np.log(working_data['count']) , bins = 50, kde = True, ax = ax1, color = 'green')
+ax1.set_title('count of bikes rented in working days')
+ax2 = fig.add_subplot(222)
+sm.qqplot(np.log(working_data['count']), line = 's', ax = ax2)
+ax2.set_title('qqplot for count in working days')
+ax3 = fig.add_subplot(223)
+sns.histplot(data = np.log(non_working_data['count']) , bins = 50, kde = True, ax = ax3, color  = 'green')
+ax3.set_title('count of bike rented in non-working days')
+ax4 = fig.add_subplot(224)
+sm.qqplot(np.log(non_working_data['count']), line = 's', ax = ax4)
+ax4.set_title('qqplot for count in non working days')
+plt.show()
+
+sample_w_log = np.log(working_data['count'])
+sample_nw_log = np.log(non_working_data['count'])
+
+statistic,p_value = stats.ttest_ind(sample_w_log,sample_nw_log , alternative = 'greater')
+statistic,p_value
+
+def htResult(p_value):
+    significance_level = 0.05
+    if p_value <= significance_level: 
+        print('Reject NULL HYPOTHESIS') 
+    else: 
+        print('Fail to Reject NULL HYPOTHESIS')
+        
+htResult(p_value)
+
+stats.levene(sample_w_log, sample_nw_log, center='median')
+
+sns.boxplot(x='workingday', y='count', data=bike_data)
+plt.show()
+
+### Chi Square
+contigency_table = pd.crosstab(bike_data.weather,bike_data.season,margins=True,margins_name='Total')
+contigency_table
+
+contigency_table = contigency_table.rename(columns = {'Total':'Row_total'})
+contigency_table
+
+n = contigency_table.at["Total", "Row_total"]
+exp=contigency_table.copy()
+for x in exp.index[0:-1]:
+    for y in exp.columns[0:-1]:
+        v= (((contigency_table.at[x, "Row_total"]) * (contigency_table.at["Total", y]))/n ).round(2)
+        exp.at[x,y]=float(v)
+
+exp = exp.iloc[[0,1,2,3,4], [0,1,2,3]]
+exp
+
+bike_data['weather'].value_counts()
+
+bike_data['season'].value_counts()
+
+bike_data=bike_data[~(bike_data['weather']==10.0)]
+bike_data['weather'].value_counts()
+
+contigency_table = pd.crosstab(bike_data.weather,bike_data.season,margins=True,margins_name='Total')
+contigency_table
+
+contigency_table = contigency_table.rename(columns = {'Total':'Row_total'})
+contigency_table
+
+n = contigency_table.at["Total", "Row_total"]
+exp=contigency_table.copy()
+for x in exp.index[0:-1]:
+    for y in exp.columns[0:-1]:
+        v= (((contigency_table.at[x, "Row_total"]) * (contigency_table.at["Total", y]))/n ).round(2)
+        exp.at[x,y]=float(v)
+exp = exp.iloc[[0,1,2,3,4], [0,1,2,3]]
+exp = exp.iloc[[0,1,2,3, 4], [0, 1, 2, 3]]
+exp
+
+weather_code_season_dep = pd.crosstab(bike_data['weather'], bike_data['season'])
+weather_code_season_dep
+
+stat, p_value, dof, expected = stats.chi2_contingency(weather_code_season_dep)
+stat, p_value, dof, expected
+
+alpha = 0.05
+if p_value >= alpha: 
+    print('We fail to reject the Null Hypothesis Ho and thus we can conclude that smokers proportion is not significantly different in different regions"')
+else:
+    print('We reject the Null Hypothesis Ho')
+    
+#### Annova
+
+bike_dcopy['weather'].value_counts()
+
+def normality_check(series, alpha=0.05):
+    _, p_value = shapiro(series)
+    print(f'p value = {p_value}')
+    if p_value >= alpha:
+        print('We fail to reject the Null Hypothesis Ho')
+    else:
+        print('We reject the Null Hypothesis Ho')
+        
+sns.histplot(bike_dcopy['count'].sample(5000), kde = True)
+
+sns.histplot(np.log(bike_dcopy['count'].sample(5000)), kde = True)
+
+stats.shapiro(bike_dcopy['count'].sample(5000))
+
+bike_dcopy=bike_dcopy[~(bike_dcopy['weather']==10.0) ] 
+bike_dcopy=bike_dcopy[~(bike_dcopy['weather']==26.0) ]
+
+bike_dcopy['weather'].value_counts()
+
+normality_check(bike_dcopy['weather'].sample(1400, replace = True))
+
+bike_dcopy.groupby(['weather'])['count'].describe()
+
+def variance_check(series1, series2, series3,series4,series5, alpha=0.05):
+    _, p_value = levene(series1, series2, series3)
+    print(f'p value = {p_value}')
+    if (p_value >= alpha).all():
+        print('We fail to reject the Null Hypothesis Ho')
+    else:
+        print('We reject the Null Hypothesis Ho')
+        
+series1 = bike_dcopy[bike_dcopy['weather'] == 1]['count']
+series2 = bike_dcopy[bike_dcopy['weather'] == 2]['count']
+series3 = bike_dcopy[bike_dcopy['weather'] == 3]['count']
+series4 = bike_dcopy[bike_dcopy['weather'] == 4]['count']
+series5 = bike_dcopy[bike_dcopy['weather'] == 7]['count']
+
+variance_check(series1, series2, series3,series4,series5)
+
+sns.kdeplot(series1,color = 'green',shade='green')
+sns.kdeplot(series2,color = 'blue',shade = 'blue')
+sns.kdeplot(series3,color = 'red',shade = 'red')
+sns.kdeplot(series4,color = 'yellow',shade = 'yellow')
+sns.kdeplot(series5,color = 'orange',shade = 'orange')
+plt.show()
+
+stat,p = stats.f_oneway(bike_dcopy[bike_dcopy['weather'] == 1]['count'],
+                        bike_dcopy[bike_dcopy['weather'] == 2]['count'],
+                        bike_dcopy[bike_dcopy['weather'] == 3]['count'],
+                       bike_dcopy[bike_dcopy['weather'] == 4]['count'],
+                       bike_dcopy[bike_dcopy['weather'] == 7]['count'])
+stat,p
+
+test, p_val= stats.levene(bike_dcopy[bike_dcopy['weather'] == 1]['count'],
+                        bike_dcopy[bike_dcopy['weather'] == 2]['count'],
+                        bike_dcopy[bike_dcopy['weather'] == 3]['count'],
+                       bike_dcopy[bike_dcopy['weather'] == 4]['count'],
+                       bike_dcopy[bike_dcopy['weather'] == 7]['count'])
+test, p_val
+
+### Checking for season
+
+bike_dcopy['season'].value_counts()
+
+bike_dcopy.groupby(['season'])['count'].describe()
+
+stat,p = stats.f_oneway(bike_dcopy[bike_dcopy['season'] == 1]['count'],
+                        bike_dcopy[bike_dcopy['season'] == 2]['count'],
+                        bike_dcopy[bike_dcopy['season'] == 3]['count'],
+                       bike_dcopy[bike_dcopy['season'] == 4]['count'],
+                       bike_dcopy[bike_dcopy['season'] == 7]['count'])
+stat,p
+
+test, p_val= stats.levene(bike_dcopy[bike_dcopy['season'] == 1]['count'],
+                        bike_dcopy[bike_dcopy['season'] == 2]['count'],
+                        bike_dcopy[bike_dcopy['season'] == 3]['count'],
+                       bike_dcopy[bike_dcopy['season'] == 4]['count'],
+                       bike_dcopy[bike_dcopy['season'] == 7]['count'])
+test, p_val
